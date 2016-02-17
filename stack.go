@@ -1,8 +1,10 @@
 package rollbar
 
 import (
+	"bytes"
 	"fmt"
 	"hash/crc32"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -10,6 +12,7 @@ import (
 
 var (
 	knownFilePathPatterns = []string{
+		runtime.GOROOT() + "/",
 		"github.com/",
 		"code.google.com/",
 		"bitbucket.org/",
@@ -17,17 +20,26 @@ var (
 	}
 )
 
+func init() {
+	gopath := os.Getenv("GOPATH")
+	if gopath != "" {
+		knownFilePathPatterns = append(knownFilePathPatterns, gopath)
+	}
+}
+
 // Frame is a single line of executed code in a Stack.
 type Frame struct {
 	Filename string `json:"filename"`
 	Method   string `json:"method"`
 	Line     int    `json:"lineno"`
+	Code     string `json:"code,omitempty"`
 }
 
 // NewFrame creates a new Frame with the filename shortened in the same way as it
 // would be when using BuildStack
-func NewFrame(filename, method string, line int) Frame {
-	return Frame{shortenFilePath(filename), method, line}
+func NewFrame(file, method string, line int) Frame {
+	code, _ := sourceLine(file, line)
+	return Frame{shortenFilePath(file), method, line, code}
 }
 
 // Stack represents a stacktrace as a slice of Frames.
@@ -42,8 +54,10 @@ func BuildStack(skip int) Stack {
 		if !ok {
 			break
 		}
+
+		code, _ := sourceLine(file, line)
 		file = shortenFilePath(file)
-		stack = append(stack, Frame{file, functionName(pc), line})
+		stack = append(stack, Frame{file, functionName(pc), line, code})
 	}
 
 	return stack
@@ -89,4 +103,19 @@ func functionName(pc uintptr) string {
 	name := fn.Name()
 	end := strings.LastIndex(name, string(os.PathSeparator))
 	return name[end+1 : len(name)]
+}
+
+func sourceLine(file string, lineNumber int) (string, error) {
+	data, err := ioutil.ReadFile(file)
+
+	if err != nil {
+		return "", err
+	}
+
+	lines := bytes.Split(data, []byte{'\n'})
+	if lineNumber <= 0 || lineNumber >= len(lines) {
+		return "???", nil
+	}
+	// -1 because line-numbers are 1 based, but our array is 0 based
+	return string(bytes.Trim(lines[lineNumber-1], " \t")), nil
 }
