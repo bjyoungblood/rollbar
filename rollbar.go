@@ -79,6 +79,10 @@ var (
 	// all items.
 	CodeVersion = ""
 
+	// Hostname is a custom hostname to use instead of os.Hostname() (on Heroku, it
+	// can be useful to use `os.Getenv("DYNO")` as the UUID hostname is rarely helpful).
+	Hostname = ""
+
 	bodyChannel chan map[string]interface{}
 	waitGroup   sync.WaitGroup
 	postErrors  chan error
@@ -214,11 +218,20 @@ func Wait() {
 	waitGroup.Wait()
 }
 
+func getHostname() string {
+	if Hostname != "" {
+		return Hostname
+	}
+
+	hostname, _ := os.Hostname()
+	return hostname
+}
+
 // Build the main JSON structure that will be sent to Rollbar with the
 // appropriate metadata.
 func buildBody(level, title string) map[string]interface{} {
 	timestamp := time.Now().Unix()
-	hostname, _ := os.Hostname()
+	hostname := getHostname()
 
 	data := map[string]interface{}{
 		"environment": Environment,
