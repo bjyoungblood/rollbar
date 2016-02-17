@@ -24,6 +24,12 @@ type Frame struct {
 	Line     int    `json:"lineno"`
 }
 
+// NewFrame creates a new Frame with the filename shortened in the same way as it
+// would be when using BuildStack
+func NewFrame(filename, method string, line int) Frame {
+	return Frame{shortenFilePath(filename), method, line}
+}
+
 // Stack represents a stacktrace as a slice of Frames.
 type Stack []Frame
 
