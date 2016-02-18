@@ -69,7 +69,7 @@ func BuildStack(skip int) Stack {
 func (s Stack) Fingerprint() string {
 	hash := crc32.NewIEEE()
 	for _, frame := range s {
-		fmt.Fprintf(hash, "%s%s%d", frame.Filename, frame.Method, frame.Line)
+		fmt.Fprintf(hash, "%s%s", frame.Filename, frame.Method)
 	}
 	return fmt.Sprintf("%x", hash.Sum32())
 }
