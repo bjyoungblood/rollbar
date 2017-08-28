@@ -4,6 +4,8 @@ import (
 	"os"
 	"runtime"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -14,6 +16,41 @@ var (
 		"launchpad.net/",
 	}
 )
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
+func stackFromError(err stackTracer) Stack {
+	st := err.StackTrace()
+	stack := make(Stack, len(st))
+
+	callers := make([]uintptr, len(st))
+	for i, caller := range st {
+		callers[i] = uintptr(caller)
+	}
+
+	frames := runtime.CallersFrames(callers)
+	i := 0
+
+	for {
+		frame, more := frames.Next()
+
+		stack[i] = Frame{
+			Filename: shortenFilePath(frame.File),
+			Method:   frame.Function,
+			Line:     frame.Line,
+		}
+
+		i++
+
+		if !more {
+			break
+		}
+	}
+
+	return stack
+}
 
 // Frame is a single line of executed code in a Stack.
 type Frame struct {

@@ -131,13 +131,21 @@ func Error(level string, err error, fields ...*Field) {
 // severity level and a given number of stack trace frames skipped. You can
 // pass, optionally, custom Fields to be passed on to Rollbar.
 func ErrorWithStackSkip(level string, err error, skip int, fields ...*Field) {
-	stack := BuildStack(2 + skip)
+	var stack Stack
+	if serr, ok := err.(stackTracer); ok {
+		stack = stackFromError(serr)
+	} else {
+		stack = BuildStack(2 + skip)
+	}
 	ErrorWithStack(level, err, stack, fields...)
 }
 
 // ErrorWithStack asynchronously sends and error to Rollbar with the given
 // stacktrace and (optionally) custom Fields to be passed on to Rollbar.
 func ErrorWithStack(level string, err error, stack Stack, fields ...*Field) {
+	if serr, ok := err.(stackTracer); ok {
+		stack = stackFromError(serr)
+	}
 	buildAndPushError(level, err, stack, fields...)
 }
 
@@ -153,7 +161,12 @@ func RequestError(level string, r *http.Request, err error, fields ...*Field) {
 // addition to extra request-specific information. You can pass, optionally,
 // custom Fields to be passed on to Rollbar.
 func RequestErrorWithStackSkip(level string, r *http.Request, err error, skip int, fields ...*Field) {
-	stack := BuildStack(2 + skip)
+	var stack Stack
+	if serr, ok := err.(stackTracer); ok {
+		stack = stackFromError(serr)
+	} else {
+		stack = BuildStack(2 + skip)
+	}
 	RequestErrorWithStack(level, r, err, stack, fields...)
 }
 
